@@ -16,7 +16,6 @@ namespace PostSQLgreAPI.Controllers
         {
             _context = context;
         }
-
         [HttpPost("register")]
         public async Task<IActionResult> Register([FromBody] Users user)
         {
@@ -25,48 +24,23 @@ namespace PostSQLgreAPI.Controllers
                 return BadRequest(new { message = "Invalid user data." });
             }
 
-            try
+            var existingUser = await _context.Users
+                .AsNoTracking()
+                .FirstOrDefaultAsync(u => u.username == user.username);
+
+            if (existingUser != null)
             {
-                // Check for existing email or username in a single query
-                var existingUser = await _context.Users
-                    .AsNoTracking()
-                    .Where(u => u.username == user.username)
-                    .FirstOrDefaultAsync();
-
-                if (existingUser != null)
-                {
-                   
-
-                    if (existingUser.username == user.username)
-                        return Conflict(new { message = "Username already taken." });
-                }
-
-                _context.Users.Add(user);
-                await _context.SaveChangesAsync();
-
-                return Ok(new
-                {
-                    id = user.id,
-                
-                    username = user.username
-                });
+                return Conflict(new { message = "Username already taken." });
             }
-            catch (DbUpdateException dbEx) when (dbEx.InnerException?.Message?.Contains("duplicate key value") == true)
+
+            _context.Users.Add(user);
+            await _context.SaveChangesAsync();
+
+            return Ok(new
             {
-                return Conflict(new
-                {
-                    message = "A duplicate key error occurred. Either the email or username already exists.",
-                    details = dbEx.InnerException.Message
-                });
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, new
-                {
-                    message = "An unexpected error occurred.",
-                    details = ex.Message
-                });
-            }
+                id = user.id,
+                username = user.username
+            });
         }
 
 
