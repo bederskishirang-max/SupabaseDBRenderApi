@@ -20,22 +20,26 @@ namespace PostSQLgreAPI.Controllers
         [HttpPost("register")]
         public async Task<IActionResult> Register([FromBody] Users user)
         {
+            if (user == null || string.IsNullOrWhiteSpace(user.username))
+            {
+                return BadRequest(new { message = "Invalid user data." });
+            }
+
             try
             {
-                // Check for existing email and username using AsNoTracking for performance
-                var emailExists = await _context.Users
+                // Check for existing email or username in a single query
+                var existingUser = await _context.Users
                     .AsNoTracking()
-                    .AnyAsync(u => u.email == user.email);
+                    .Where(u => u.username == user.username)
+                    .FirstOrDefaultAsync();
 
-                if (emailExists)
-                    return Conflict(new { message = "Email already registered." });
+                if (existingUser != null)
+                {
+                   
 
-                var usernameExists = await _context.Users
-                    .AsNoTracking()
-                    .AnyAsync(u => u.username == user.username);
-
-                if (usernameExists)
-                    return Conflict(new { message = "Username already taken." });
+                    if (existingUser.username == user.username)
+                        return Conflict(new { message = "Username already taken." });
+                }
 
                 _context.Users.Add(user);
                 await _context.SaveChangesAsync();
@@ -43,7 +47,7 @@ namespace PostSQLgreAPI.Controllers
                 return Ok(new
                 {
                     id = user.id,
-                    email = user.email,
+                
                     username = user.username
                 });
             }
@@ -66,6 +70,7 @@ namespace PostSQLgreAPI.Controllers
         }
 
 
+
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] Users login)
         {
@@ -86,7 +91,7 @@ namespace PostSQLgreAPI.Controllers
             var user = await _context.Users.FindAsync(id);
             if (user == null) return NotFound();
             user.username = updated.username;
-            user.email = updated.email;
+        
             user.password = updated.password;
             await _context.SaveChangesAsync();
             return Ok(user);

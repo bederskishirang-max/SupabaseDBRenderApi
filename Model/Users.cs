@@ -11,10 +11,9 @@ namespace PostSQLgreAPI.Model
         [Key]
         public int id { get; set; }
         public string username { get; set; }
-        public string email { get; set; }
+      
         public string password { get; set; }
-        //[JsonIgnore]
-        //public DateTime created_at { get; set; }
+      
     }
 }
 
