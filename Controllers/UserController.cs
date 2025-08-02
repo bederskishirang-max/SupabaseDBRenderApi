@@ -16,33 +16,31 @@ namespace PostSQLgreAPI.Controllers
         {
             _context = context;
         }
+
+
         [HttpPost("register")]
         public async Task<IActionResult> Register([FromBody] Users user)
         {
             if (user == null || string.IsNullOrWhiteSpace(user.username))
-            {
                 return BadRequest(new { message = "Invalid user data." });
-            }
 
             var existingUser = await _context.Users
                 .AsNoTracking()
                 .FirstOrDefaultAsync(u => u.username == user.username);
 
             if (existingUser != null)
-            {
                 return Conflict(new { message = "Username already taken." });
-            }
 
             _context.Users.Add(user);
-            await _context.SaveChangesAsync();
+            await _context.SaveChangesAsync(acceptAllChangesOnSuccess: false);  // Success here means data saved.
 
+            // Don't load anything more from DB to avoid read timeout
             return Ok(new
             {
-                id = user.id,
+                message = "Registered successfully.",
                 username = user.username
             });
         }
-
 
 
         [HttpPost("login")]
@@ -78,7 +76,7 @@ namespace PostSQLgreAPI.Controllers
             var user = await _context.Users.FindAsync(id);
             if (user == null) return NotFound();
             _context.Users.Remove(user);
-            await _context.SaveChangesAsync();
+            await _context.SaveChangesAsync(acceptAllChangesOnSuccess: false);
             return Ok();
         }
     }
