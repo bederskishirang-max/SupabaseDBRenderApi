@@ -5,12 +5,12 @@ EXPOSE 80
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /src
 
-# Adjust this if the .csproj file is inside a folder
+# ✅ Replace with your correct folder and project name
 COPY ["PostSQLgreAPI/PostSQLgreAPI.csproj", "PostSQLgreAPI/"]
 RUN dotnet restore "PostSQLgreAPI/PostSQLgreAPI.csproj"
 
 COPY . .
-WORKDIR "/src/PostSQLgreAPI"
+WORKDIR "/src/PostgreApi"
 RUN dotnet publish "PostSQLgreAPI.csproj" -c Release -o /app/publish
 
 FROM base AS final
