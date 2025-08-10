@@ -102,7 +102,8 @@ namespace PostSQLgreAPI.Controllers
                 .Select(u => new
                 {
                     u.username,
-                    u.email
+                    u.email,
+                    u.password
                 })
                 .ToListAsync();
 
