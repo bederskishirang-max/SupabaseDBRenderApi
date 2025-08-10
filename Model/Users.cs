@@ -16,7 +16,7 @@ namespace PostSQLgreAPI.Model
         [MaxLength(255)]
         public string username { get; set; }
 
-        [Required]
+        
         [MaxLength(255)]
         public string email { get; set; }
 
