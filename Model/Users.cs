@@ -12,7 +12,7 @@ namespace PostSQLgreAPI.Model
         [Key]
         public int id { get; set; }
 
-        [Required]
+        
         [MaxLength(255)]
         public string username { get; set; }
 
@@ -20,7 +20,7 @@ namespace PostSQLgreAPI.Model
         [MaxLength(255)]
         public string email { get; set; }
 
-        [Required]
+        
         public string password { get; set; }
 
         [Column("date_created")] // Matches your DB column name
