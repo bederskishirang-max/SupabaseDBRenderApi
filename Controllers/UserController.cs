@@ -96,7 +96,19 @@ namespace PostSQLgreAPI.Controllers
 
 
         [HttpGet]
-        public async Task<IActionResult> GetAll() => Ok(await _context.Users.ToListAsync());
+        public async Task<IActionResult> GetAll()
+        {
+            var users = await _context.Users
+                .Select(u => new
+                {
+                    u.username,
+                    u.email
+                })
+                .ToListAsync();
+
+            return Ok(users);
+        }
+
 
 
 
