@@ -86,7 +86,7 @@ namespace PostSQLgreAPI.Controllers
 
 
         [HttpPost("login")]
-        public async Task<IActionResult> Login([FromBody] Users login)
+        public async Task<IActionResult> Login([FromBody] ForLogin login)
         {
             var user = await _context.Users
                 .FirstOrDefaultAsync(u => u.username == login.username && u.password == login.password);
