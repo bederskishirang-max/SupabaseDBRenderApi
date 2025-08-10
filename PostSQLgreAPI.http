@@ -1,0 +1,6 @@
+@PostSQLgreAPI_HostAddress = http://localhost:5232
+
+GET {{PostSQLgreAPI_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
