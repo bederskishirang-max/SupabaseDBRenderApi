@@ -1,3 +1,4 @@
+using CloudinaryDotNet;
 using Microsoft.EntityFrameworkCore;
 using PostSQLgreAPI.Data;
 using System;
@@ -12,9 +13,16 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+ options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
+var cloudinarySettings = builder.Configuration.GetSection("Cloudinary");
+var account = new Account(
+    cloudinarySettings["CloudName"],
+    cloudinarySettings["ApiKey"],
+    cloudinarySettings["ApiSecret"]
+);
 
+builder.Services.AddSingleton(new Cloudinary(account));
 
 var app = builder.Build();
 

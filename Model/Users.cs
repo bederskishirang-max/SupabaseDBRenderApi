@@ -2,6 +2,7 @@
 using Newtonsoft.Json;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Globalization;
 using System.Net.NetworkInformation;
 
 namespace PostSQLgreAPI.Model
@@ -12,19 +13,11 @@ namespace PostSQLgreAPI.Model
         [Key]
         public int id { get; set; }
 
-        
-        [MaxLength(255)]
-        public string username { get; set; }
-
-        
-        [MaxLength(255)]
         public string email { get; set; }
-
-        
-        public string password { get; set; }
-
-        [Column("date_created")] // Matches your DB column name
-        public DateTime date_created { get; set; } = DateTime.UtcNow; // Default value
+        public string username { get; set; }
+        public string password { get; set; } // 👈 store only hash
+        public string? profile_image_url { get; set; } // still your PublicId
+        public DateTime date_created { get; set; }
     }
 }
 
