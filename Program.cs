@@ -15,7 +15,8 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddDbContext<AppDbContext>(options =>
  options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-//var cloudinarySettings = builder.Configuration.GetSection("Cloudinary");
+var cloudinarySettings = builder.Configuration.GetSection("Cloudinary");
+
 //var account = new Account(
 //    cloudinarySettings["CloudName"],
 //    cloudinarySettings["ApiKey"],

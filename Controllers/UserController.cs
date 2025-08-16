@@ -63,47 +63,75 @@ namespace PostSQLgreAPI.Controllers
             if (file == null || file.Length == 0)
                 return BadRequest("No file uploaded.");
 
-            // Check user exists
             var user = await _context.Users.FindAsync(userId);
             if (user == null)
                 return NotFound("User not found.");
 
-            // Upload to Cloudinary as PRIVATE
-     
+            // Delete old image if exists
+            if (!string.IsNullOrEmpty(user.profile_image_url))
+            {
+                var deletionParams = new DeletionParams(user.profile_image_url)
+                {
+                    ResourceType = ResourceType.Image,
+                    Type = "authenticated"
+                };
+                await _cloudinary.DestroyAsync(deletionParams);
+            }
+
+            // Upload new image
             var uploadParams = new ImageUploadParams
             {
                 File = new FileDescription(file.FileName, file.OpenReadStream()),
                 Folder = "profile_images",
-                Type = "authenticated",  // or "private", depending on your needs
-                AccessControl = new List<AccessControlRule>
-                {
-                    new AccessControlRule
-                    {
-                        AccessType = AccessType.Token // 👈 use enum, not string
-                    }
-                }
+                Type = "authenticated"
             };
 
             var uploadResult = await _cloudinary.UploadAsync(uploadParams);
-
             if (uploadResult.StatusCode != System.Net.HttpStatusCode.OK)
                 return StatusCode((int)uploadResult.StatusCode, "Cloudinary upload failed.");
 
-            // Save only the PublicId, not the URL
             user.profile_image_url = uploadResult.PublicId;
             await _context.SaveChangesAsync();
 
-            // Generate a signed URL to return immediately
             var signedUrl = _cloudinary.Api.UrlImgUp
+                .ResourceType("image")
+                .Type("authenticated")
+                .Signed(true)
                 .Transform(new Transformation().Width(200).Height(200).Crop("fill"))
-                .Signed(true) // 👈 required for private assets
-                .BuildUrl(user.profile_image_url + ".jpg");
+                .BuildUrl(user.profile_image_url);
 
             return Ok(new { imageUrl = signedUrl });
         }
 
 
 
+        //public string GetSignedProfileImageUrl(string publicId)
+        //{
+        //    // Generate a temporary signed URL (10 min expiration)
+        //    var url = _cloudinary.Api.UrlImgUp
+        //        .ResourceType("image")
+        //        .Type("authenticated")
+        //        .Signed(true)
+        //        .Transform(new Transformation().Width(200).Height(200).Crop("fill"))
+        //        .BuildUrl($"profile_images/{publicId}.png"); // or .jpg depending on your file
+
+        //    return url;
+        //}
+
+        //[HttpGet("{userId}/profile-image")]
+        //public async Task<IActionResult> GetProfileImage(int userId)
+        //{
+        //    var user = await _context.Users.FindAsync(userId);
+        //    if (user == null || string.IsNullOrEmpty(user.profile_image_url))
+        //        return NotFound("Profile image not found.");
+
+        //    var signedUrl = _cloudinary.Api.UrlImgUp
+        //        .Transform(new Transformation().Width(200).Height(200).Crop("fill"))
+        //        .Signed(true) // 👈 only signed links work for private
+        //        .BuildUrl(user.profile_image_url+ ".jpg");
+
+        //    return Ok(new { imageUrl = signedUrl });
+        //}
         [HttpGet("{userId}/profile-image")]
         public async Task<IActionResult> GetProfileImage(int userId)
         {
@@ -111,10 +139,16 @@ namespace PostSQLgreAPI.Controllers
             if (user == null || string.IsNullOrEmpty(user.profile_image_url))
                 return NotFound("Profile image not found.");
 
+            // Use the PublicId stored in DB directly
             var signedUrl = _cloudinary.Api.UrlImgUp
-                .Transform(new Transformation().Width(200).Height(200).Crop("fill"))
-                .Signed(true) // 👈 only signed links work for private
-                .BuildUrl(user.profile_image_url+ ".jpg");
+                .ResourceType("image")
+                .Type("authenticated")          // for private images
+                .Signed(true)                   // generate signed URL
+                .Transform(new Transformation()
+                    .Width(200)
+                    .Height(200)
+                    .Crop("fill"))
+                .BuildUrl(user.profile_image_url); // use PublicId directly, no extra folder
 
             return Ok(new { imageUrl = signedUrl });
         }
@@ -291,83 +325,145 @@ namespace PostSQLgreAPI.Controllers
         }
 
 
+        //[HttpPost("register")]
+        //public async Task<IActionResult> Register([FromForm] Model.RegisterRequest request)
+        //{
+        //    try
+        //    {
+        //        // Check for existing email
+        //        if (await _context.Users.AnyAsync(u => u.email == request.Email))
+        //            return Conflict(new { message = "Email already registered." });
+
+        //        if (await _context.Users.AnyAsync(u => u.username == request.Username))
+        //            return Conflict(new { message = "Username already taken." });
+
+        //        // Create new user with hashed password
+        //        var user = new Users
+        //        {
+        //            email = request.Email,
+        //            username = request.Username,
+        //            password = PasswordHelper.HashPassword(request.Password),
+        //            date_created = DateTime.UtcNow
+        //        };
+
+        //        if (request.ProfileImage != null && request.ProfileImage.Length > 0)
+        //        {
+        //            // Upload profile image to Cloudinary
+        //            var uploadParams = new ImageUploadParams
+        //            {
+        //                File = new FileDescription(request.ProfileImage.FileName, request.ProfileImage.OpenReadStream()),
+        //                Folder = "profile_images",
+        //                Type = "authenticated",
+        //                AccessControl = new List<AccessControlRule>
+        //        {
+        //            new AccessControlRule { AccessType = AccessType.Token }
+        //        }
+        //            };
+
+        //            var uploadResult = await _cloudinary.UploadAsync(uploadParams);
+
+        //            if (uploadResult.StatusCode != System.Net.HttpStatusCode.OK)
+        //                return StatusCode((int)uploadResult.StatusCode, "Cloudinary upload failed.");
+
+        //            user.profile_image_url = uploadResult.PublicId; // Save PublicId
+        //        }
+        //        else
+        //        {
+        //            // 👇 Save default avatar if no upload
+        //            user.profile_image_url = "images/default-avatar.png";
+        //            // ⚠️ if you uploaded default-avatar to Cloudinary, use its PublicId instead, e.g. "default-avatar"
+        //        }
+
+        //        _context.Users.Add(user);
+        //        await _context.SaveChangesAsync();
+
+        //        // Trigger Pipedream webhook
+        //        using var httpClient = new HttpClient();
+        //        await httpClient.PostAsJsonAsync("https://eoy1schnghwcrpg.m.pipedream.net", new
+        //        {
+        //            action = "register",
+        //            email = user.email,
+        //            username = user.username
+        //        });
+
+        //        return Ok(new
+        //        {
+        //            id = user.id,
+        //            email = user.email,
+        //            username = user.username,
+        //            profileImageId = user.profile_image_url
+        //        });
+        //    }
+        //    catch (DbUpdateException dbEx) when (dbEx.InnerException?.Message?.Contains("duplicate key value") == true)
+        //    {
+        //        return Conflict(new { message = "Duplicate key error.", details = dbEx.InnerException.Message });
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        return StatusCode(500, new { message = "Unexpected error.", details = ex.Message });
+        //    }
+        //}
+
+
+        
         [HttpPost("register")]
-        public async Task<IActionResult> Register([FromForm] Model.RegisterRequest request)
+        public async Task<IActionResult> Register([FromForm] RegisterRequests request)
         {
-            try
+            // Check for existing email/username
+            if (await _context.Users.AnyAsync(u => u.email == request.Email))
+                return Conflict(new { message = "Email already registered." });
+            if (await _context.Users.AnyAsync(u => u.username == request.Username))
+                return Conflict(new { message = "Username already taken." });
+
+            // Create user
+            var user = new Users
             {
-                // Check for existing email
-                if (await _context.Users.AnyAsync(u => u.email == request.Email))
-                    return Conflict(new { message = "Email already registered." });
+                email = request.Email,
+                username = request.Username,
+                date_created = DateTime.UtcNow,
+                password = BCrypt.Net.BCrypt.HashPassword(request.Password)
+            };
 
-                if (await _context.Users.AnyAsync(u => u.username == request.Username))
-                    return Conflict(new { message = "Username already taken." });
-
-                // Create new user with hashed password
-                var user = new Users
+            // Upload profile image if provided
+            if (request.ProfileImage != null && request.ProfileImage.Length > 0)
+            {
+                var uploadParams = new ImageUploadParams
                 {
-                    email = request.Email,
-                    username = request.Username,
-                    password = PasswordHelper.HashPassword(request.Password),
-                    date_created = DateTime.UtcNow
+                    File = new FileDescription(request.ProfileImage.FileName, request.ProfileImage.OpenReadStream()),
+                    Folder = "profile_images",
+                    Type = "authenticated"
                 };
 
-                if (request.ProfileImage != null && request.ProfileImage.Length > 0)
-                {
-                    // Upload profile image to Cloudinary
-                    var uploadParams = new ImageUploadParams
-                    {
-                        File = new FileDescription(request.ProfileImage.FileName, request.ProfileImage.OpenReadStream()),
-                        Folder = "profile_images",
-                        Type = "authenticated",
-                        AccessControl = new List<AccessControlRule>
-                {
-                    new AccessControlRule { AccessType = AccessType.Token }
-                }
-                    };
+                var uploadResult = await _cloudinary.UploadAsync(uploadParams);
+                if (uploadResult.StatusCode != System.Net.HttpStatusCode.OK)
+                    return StatusCode((int)uploadResult.StatusCode, "Cloudinary upload failed.");
 
-                    var uploadResult = await _cloudinary.UploadAsync(uploadParams);
-
-                    if (uploadResult.StatusCode != System.Net.HttpStatusCode.OK)
-                        return StatusCode((int)uploadResult.StatusCode, "Cloudinary upload failed.");
-
-                    user.profile_image_url = uploadResult.PublicId; // Save PublicId
-                }
-                else
-                {
-                    // 👇 Save default avatar if no upload
-                    user.profile_image_url = "images/default-avatar.png";
-                    // ⚠️ if you uploaded default-avatar to Cloudinary, use its PublicId instead, e.g. "default-avatar"
-                }
-
-                _context.Users.Add(user);
-                await _context.SaveChangesAsync();
-
-                // Trigger Pipedream webhook
-                using var httpClient = new HttpClient();
-                await httpClient.PostAsJsonAsync("https://eoy1schnghwcrpg.m.pipedream.net", new
-                {
-                    action = "register",
-                    email = user.email,
-                    username = user.username
-                });
-
-                return Ok(new
-                {
-                    id = user.id,
-                    email = user.email,
-                    username = user.username,
-                    profileImageId = user.profile_image_url
-                });
+                // Save only PublicId in DB
+                user.profile_image_url = uploadResult.PublicId;
             }
-            catch (DbUpdateException dbEx) when (dbEx.InnerException?.Message?.Contains("duplicate key value") == true)
+            else
             {
-                return Conflict(new { message = "Duplicate key error.", details = dbEx.InnerException.Message });
+                user.profile_image_url = "profile_images/default-avatar"; // default PublicId
             }
-            catch (Exception ex)
+
+            _context.Users.Add(user);
+            await _context.SaveChangesAsync();
+
+            // Generate signed URL for client display
+            string profileImageSignedUrl = _cloudinary.Api.UrlImgUp
+                .ResourceType("image")
+                .Type("authenticated")
+                .Signed(true)
+                .Transform(new Transformation().Width(200).Height(200).Crop("fill"))
+                .BuildUrl(user.profile_image_url + ".png"); // use .jpg if needed
+
+            return Ok(new
             {
-                return StatusCode(500, new { message = "Unexpected error.", details = ex.Message });
-            }
+                id = user.id,
+                email = user.email,
+                username = user.username,
+                profileImageUrl = profileImageSignedUrl
+            });
         }
 
 

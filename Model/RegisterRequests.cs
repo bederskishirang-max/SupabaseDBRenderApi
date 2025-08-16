@@ -1,7 +1,7 @@
 ﻿namespace PostSQLgreAPI.Model
 {
  
-        public class RegisterRequest
+        public class RegisterRequests
         {
         public string Email { get; set; }
         public string Username { get; set; }
