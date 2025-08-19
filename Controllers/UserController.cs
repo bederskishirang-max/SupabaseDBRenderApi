@@ -154,6 +154,21 @@ namespace PostSQLgreAPI.Controllers
         }
 
 
+       [HttpGet("users/{id}/profile-image/file")]
+       public async Task<IActionResult> GetProfileImageFile(int id)
+       {
+           // 1. Lookup the user in DB
+           var user = await _context.Users.FirstOrDefaultAsync(u => u.id == id);
+           if (user == null || string.IsNullOrEmpty(user.profile_image_url))
+               return NotFound();
+
+           // 2. Download from Cloudinary (server can authenticate)
+           using var httpClient = new HttpClient();
+           var bytes = await httpClient.GetByteArrayAsync(user.profile_image_url);
+
+           // 3. Return as File
+           return File(bytes, "image/jpeg");
+       }
 
 
         //[HttpPost("register")]
